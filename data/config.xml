@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root>
+	<playField width="15" height="20" />
+	<blockSize value="20" />
+	<blocks>
+		<block height="2" width="3" image="images/arrow.jpg">
+			010
+			111			
+		</block>
+		<block height="2" width="2" image="images/block.jpg" colorkey="false">
+			11
+			11			
+		</block>
+		<block height="3" width="2" image="images/l.jpg">
+			01
+			01
+			11			
+		</block>
+		<block height="4" width="1" image="images/brick.jpg">
+			1
+			1
+			1
+			1			
+		</block>
+		<block height="3" width="2" image="images/lightning.jpg">
+			01
+			11
+			10			
+		</block>
+	</blocks>
+</root>

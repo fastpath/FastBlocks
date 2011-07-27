@@ -1,0 +1,14 @@
+Must Have:
+- different block types, playingFieldheight/width from xml
+- correct Tetris-Gameplay
+	- spawning of new Blocks
+	- moving of the Blocks
+	- Blocks are falling
+	- Block collides with another and stops moving
+	- a whole line will be dropped (with animation)
+
+Maybe:
+- different difficulties
+- GUI to start a game
+- fast falling Block animation
+- Game against KI with the same playing game
