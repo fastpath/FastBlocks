@@ -56,6 +56,19 @@ class CompleteBlock(pygame.sprite.Sprite): #TODO: Lookup Python Movable
     def setSpawnPos(self,pos):
         self.rect.topleft = pos
         
+    def move(self,dir,length):
+        if dir == "down":
+            self.rect.topleft = (self.rect.topleft[0],self.rect.topleft[1]+length)
+        elif dir == "left":
+            self.rect.topleft = (self.rect.topleft[0]-length,self.rect.topleft[1])
+        elif dir == "right":
+            self.rect.topleft = (self.rect.topleft[0]+length,self.rect.topleft[1])
+        elif dir == "up":
+            self.rect.topleft = (self.rect.topleft[0],self.rect.topleft[1]-length)
+            
+        
+        print "hoho"
+        
     def __deepcopy__(self,dup):
         return CompleteBlock(copy.deepcopy(self.height, dup),copy.deepcopy(self.width, dup),copy.deepcopy(self.numbers, dup),copy.deepcopy(self.imageName, dup))
 
@@ -90,14 +103,37 @@ class PlayingField:
         print spawnWidth
         self.activeBlocks[-1].setSpawnPos((spawnWidth*self.blockSize,0))
         self.allSprites.add(self.activeBlocks[-1].sprite)
+        
+    def moveActiveBlock(self,dir):
+        self.activeBlocks[-1].move(dir,self.blockSize)
+        self.drawAllBlocks()
+    
+    def moveBlocksDown(self):
+        for block in self.activeBlocks:
+            block.move("down",self.blockSize)
+                    
+    def update(self):
+        
+        self.drawAllBlocks();
+
 
 def input(events,playingField): 
     for event in events: 
         if event.type == QUIT: 
             sys.exit(0) 
-        else: 
-            if event.type == MOUSEBUTTONDOWN:
-                playingField.spawnRandBlock()
+        elif event.type == MOUSEBUTTONDOWN:
+            playingField.spawnRandBlock()
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_LEFT:
+                playingField.moveActiveBlock("left")
+            elif event.key == pygame.K_RIGHT:
+                playingField.moveActiveBlock("right")
+        elif event.type == USEREVENT+1:
+            print "HAHAHAHAH"
+            playingField.moveBlocksDown()
+            #elif event.key == 100:
+            #    playingField.moveActiveBlock("right")
+            
 
 def initialize(xmlName):
     tree = dom.parse(os.path.join(data_dir, xmlName))
@@ -139,23 +175,25 @@ def main():
     background = background.convert()
     background.fill((120,255,255))
     
+    pygame.time.set_timer(USEREVENT+1, 3000)
 
     
     print len(playingField.blockList)
     
     playingField.spawnRandBlock()
     
-    allsprites = pygame.sprite.RenderPlain((playingField.blockList[0]))
+    #allsprites = pygame.sprite.RenderPlain((playingField.blockList[0]))
                
     clock = pygame.time.Clock()
+    screen.blit(background, (0, 0))
     
     while True:
         input(pygame.event.get(),playingField)
-        clock.tick(60)
-        screen.blit(background, (0, 0))
-        screen.blit(playingField.fieldSurface, (50,50))
-        playingField.drawAllBlocks()
+        #pygame.time.wait(600)
         
+        
+        #playingField.update()
+        screen.blit(playingField.fieldSurface, (50,50))
         pygame.display.flip()
         
         
