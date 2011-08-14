@@ -3,7 +3,7 @@
 	<playField width="15" height="20" />
 	<blockSize value="20" />
 	<blocks>
-		<block height="2" width="3" image="images/arrow.jpg">
+		<block height="2" width="3" image="images/block.jpg">
 			010
 			111			
 		</block>
@@ -11,18 +11,18 @@
 			11
 			11			
 		</block>
-		<block height="3" width="2" image="images/l.jpg">
+		<block height="3" width="2" image="images/block.jpg">
 			01
 			01
 			11			
 		</block>
-		<block height="4" width="1" image="images/brick.jpg">
+		<block height="4" width="1" image="images/block.jpg">
 			1
 			1
 			1
 			1			
 		</block>
-		<block height="3" width="2" image="images/lightning.jpg">
+		<block height="3" width="2" image="images/block.jpg">
 			01
 			11
 			10			
