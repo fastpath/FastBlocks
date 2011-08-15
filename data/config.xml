@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <root>
-	<playField width="15" height="20" />
+	<playField width="15" height="20" x="50" y="50" />
 	<blockSize value="20" />
 	<blocks>
 		<block height="2" width="3" image="images/block.jpg">
