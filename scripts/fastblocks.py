@@ -46,7 +46,7 @@ def initialize(xmlName):
         elif entry.nodeName == "blockSize":
             blockSize = entry.getAttribute("value")
 
-    playingField = PlayingField(int(p_width),int(p_height),int(p_x),int(p_y),int(blockSize))
+    playingField = PlayingField(int(p_height),int(p_width),int(p_x),int(p_y),int(blockSize))
     
     for entry in tree.firstChild.childNodes:
         if entry.nodeName == "blocks":
@@ -87,7 +87,7 @@ def input(events,playingField):
                 playingField.rotateActiveBlock()
                 
         elif event.type == USEREVENT+1:
-            playingField.moveBlocksDown()
+            playingField.update()
             #elif event.key == 100:
             #    playingField.moveActiveBlock("right")
 
@@ -104,28 +104,28 @@ class Block(pygame.sprite.Sprite):
 class CompleteBlock(): #TODO: Lookup Python Movable
     
     def __init__(self,height,width,numbers,image,blockSize):
-        # width and heigth and blocksize in pixel of the composed blocks
+        ' width and heigth and blocksize in pixel of the composed blocks'
         self.width = width
         self.height = height
         self.blockSize = blockSize
         
-        # numberstring from xml which defines the positions of the block
+        ' numberstring from xml which defines the positions of the block'
         self.numbers = numbers
         self.collisonArray = []
         self.blocks = []
         self.blockIndices = []
         
-        # is the block stuck ? (no more movement)
+        ' is the block stuck ? (no more movement)'
         self.stuck = "false"
         
-        # group of all block-sprites
+        ' group of all block-sprites'
         self.allSprites = pygame.sprite.RenderUpdates()
         
-        # image and topleft coordinates of the whole block
+        
+        ' image and topleft coordinates of the whole block'
         self.imageName = image
         self.pos = [0,0]
-        
-        
+
         for i in range(self.height):
             row = []
             for j in self.numbers[i*self.width:i*self.width+self.width]:
@@ -198,6 +198,20 @@ class CompleteBlock(): #TODO: Lookup Python Movable
                     self.blocks[blockCounter].rect = pygame.Rect(self.pos[0],self.pos[1],self.blocks[blockCounter].rect[2],self.blocks[blockCounter].rect[3])
                     self.blocks[blockCounter].rect = self.blocks[blockCounter].rect.move(j*self.blockSize,i*self.blockSize)
                     blockCounter = blockCounter + 1
+                    
+    def deleteBlocks(self,blockIndices):
+        deletedBlocks = pygame.sprite.RenderUpdates()
+        for block in self.blocks:
+            if block.id in blockIndices:
+                #print "weg"
+                self.allSprites.remove(block.sprite)
+                deletedBlocks.add(block.sprite)
+                self.blocks.remove(block)
+        
+        return deletedBlocks
+
+                
+        
 
     def __deepcopy__(self,dup):
         return CompleteBlock(copy.deepcopy(self.height, dup),copy.deepcopy(self.width, dup),copy.deepcopy(self.numbers, dup),copy.deepcopy(self.imageName, dup),copy.deepcopy(self.blockSize, dup))
@@ -210,6 +224,7 @@ class PlayingField:
         self.blockSize = blockSize
         self.blockList = []
         self.allSprites = pygame.sprite.RenderUpdates()
+        self.deletedBlocks = pygame.sprite.RenderUpdates()
         self.activeBlocks = []
         self.blockIndex = 1
         self.pos = (x,y)        
@@ -231,31 +246,13 @@ class PlayingField:
         
     def drawAllBlocks(self):
         self.a = 0
-        #self.fieldSurface.fill((120,100,50))
-        #blocks = self.allSprites.draw(self.fieldSurface)
-        #screen = pygame.display.get_surface() 
-        #self.allSprites.clear(screen, self.fieldSurface)
-        #dirtyRects = self.allSprites.draw(screen)
-        
-        #for block in self.activeBlocks:
-        #    for lBlock in block.blocks:
-        #        dirtyRects.append(screen.blit(lBlock.image,lBlock.rect))
-        #    print "test"
-        #pygame.display.update(dirtyRects)
     
     def spawnRandBlock(self):
         random.seed(time.time()*256)
         blocknumber = random.randint(0,len(self.blockList)-1)
-        spawnWidth = 0
-        if len(self.activeBlocks) != 0:
-            for block in self.activeBlocks:
-                spawnWidth += block.width
-                print "Breite: " + str(block.width)
         dup = copy.deepcopy(self.blockList[blocknumber])
         self.activeBlocks.append(dup)
-        print spawnWidth
         self.activeBlocks[-1].setSpawnPos(((self.width/2)*self.blockSize+self.pos[0],0+self.pos[1]))
-        print (spawnWidth*self.blockSize+self.pos[0],0+self.pos[1])
         self.allSprites.add(self.activeBlocks[-1].allSprites)
         self.blockIndex = self.activeBlocks[-1].setBlockIndex(self.blockIndex)
         self.updateCollisionArray()
@@ -269,27 +266,27 @@ class PlayingField:
             for lBlock in block.blocks:
                 pos = lBlock.rect.topleft
                 self.collisionArray[(pos[1]-self.pos[1])/self.blockSize][(pos[0]-self.pos[0])/self.blockSize] = lBlock.id
-        #print self.collisionArray
 
     def moveActiveBlock(self,dir):
         if self.activeBlocks[-1].stuck != "true":
             self.activeBlocks[-1].move(dir,self.blockSize,self)
-        self.update()
+        self.updateCollisionArray()
     
     def rotateActiveBlock(self):
         if self.activeBlocks[-1].stuck != "true":
             self.activeBlocks[-1].rotate()
-        self.update()
+        self.updateCollisionArray()
     
     def moveBlocksDown(self):
         for block in self.activeBlocks:
             if block.stuck != "true":
                 block.move("down",self.blockSize,self)
-        self.update()
     
     def update(self):
-        self.drawAllBlocks()
-        #self.updateCollisionArray()
+        self.moveBlocksDown()
+        self.updateCollisionArray()
+        lines = self.checkReadyLines()
+        self.deleteReadyLines(lines)
         
     def collides(self,oldRects,newRects,indices):
         oldTuples = []
@@ -305,7 +302,6 @@ class PlayingField:
                 else:
                     test.append("false")
             else:
-                
                 print "stuck"
                 return "true"
             
@@ -313,6 +309,26 @@ class PlayingField:
             return "true"
         else:
             return "false"
+
+    def checkReadyLines(self):
+        lines = []
+        for i,row in enumerate(self.collisionArray):
+            check = "false"
+            for blockIndex in row:
+                if blockIndex == 0:
+                    check = "true"
+            if check == "false":
+                lines.append(i)
+        return lines
+    
+    def deleteReadyLines(self,lines):
+        for lineIndex in lines:
+            line = self.collisionArray[lineIndex]
+            for block in self.activeBlocks:
+                blockIndices = [i for i in line if i in block.blockIndices]
+                self.deletedBlocks.add(block.deleteBlocks(blockIndices))
+                block.stuck = "false"
+        self.updateCollisionArray()
                 
 def main():
     pygame.display.init()
@@ -327,7 +343,7 @@ def main():
     background.fill((120,255,255))
     
     
-    pygame.time.set_timer(USEREVENT+1, 1000)
+    pygame.time.set_timer(USEREVENT+1, 500)
 
     
     print len(playingField.blockList)
@@ -342,8 +358,11 @@ def main():
     while True:
         input(pygame.event.get(),playingField)
         #playingField.update()
+
+        playingField.deletedBlocks.clear(screen, playingField.fieldSurface2)
+        playingField.deletedBlocks.empty()
+
         playingField.allSprites.clear(screen, playingField.fieldSurface2)
-        
         dirtyRects = playingField.allSprites.draw(screen)
         pygame.display.update(dirtyRects)
         clock.tick(40)

@@ -12,3 +12,12 @@ Maybe:
 - GUI to start a game
 - fast falling Block animation
 - Game against KI with the same playing game
+
+
+
+Player:
+	- can move Blocks left, right, down
+	- rotate Blocks
+
+PlayingField:
+	- 
