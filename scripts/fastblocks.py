@@ -6,7 +6,7 @@ Created on 25.07.2011
 //TODO
 - collisioncheck before rotate
 - graphics
-- check if theres a solid line
+- check if theres a solid line (done!)
 - points
 - use dirtyrects (done!)
 '''
@@ -19,9 +19,9 @@ from pygame.locals import *
 main_dir = os.path.split(os.path.abspath(__file__))[0]
 data_dir = os.path.join(main_dir, '../data')
 
-screen_dims = (640,480)
+screen_dims = (720,540)
 
-def load_image(name, colorkey=None):
+def load_image(name, colorkey="True"):
     fullname = os.path.join(data_dir, name)
     try:
         image = pygame.image.load(fullname).convert()
@@ -99,6 +99,9 @@ class Block(pygame.sprite.Sprite):
         self.image, self.rect = load_image(image, -1)
         self.sprite = pygame.sprite.RenderPlain(self)
         self.id = 0
+        
+    def __del__(self):
+        print "ICH WURDE ZERTSTOERT"
 
 
 class CompleteBlock(): #TODO: Lookup Python Movable
@@ -117,6 +120,7 @@ class CompleteBlock(): #TODO: Lookup Python Movable
         
         ' is the block stuck ? (no more movement)'
         self.stuck = "false"
+        self.line = "false "
         
         ' group of all block-sprites'
         self.allSprites = pygame.sprite.RenderUpdates()
@@ -152,31 +156,34 @@ class CompleteBlock(): #TODO: Lookup Python Movable
         for block in self.blocks:
             block.rect = block.rect.move(self.pos[0],self.pos[1])
             
-    def move(self,dir,length,playingField):
+    def move(self,dir,playingField,forced = "false",steps = 1, intersect = None):
         oldRects = []
         newRects = []
-        for block in self.blocks:
+        indices = []
+        for i,block in enumerate(self.blocks):
             oldRects.append(block.rect)
-            if dir == "down":
-                newRects.append(block.rect.move(0,length))
-            elif dir == "left":
-                newRects.append(block.rect.move(-length,0))
-            elif dir == "right":
-                newRects.append(block.rect.move(length,0))
-            elif dir == "up":
-                newRects.append(block.rect.move(0,-length))
+            if intersect is None or block.id in intersect:
+                if dir == "down":
+                    newRects.append(block.rect.move(0,playingField.blockSize*steps))
+                elif dir == "left":
+                    newRects.append(block.rect.move(-playingField.blockSize*steps,0))
+                elif dir == "right":
+                    newRects.append(block.rect.move(playingField.blockSize*steps,0))
+                elif dir == "up":
+                    newRects.append(block.rect.move(0,-playingField.blockSize*steps))
+                indices.append(i)
 
-        if playingField.collides(oldRects,newRects,self.blockIndices) == "false":
-            for i in range(len(self.blocks)):
-                self.blocks[i].rect = newRects[i]
+        if playingField.collides(oldRects,newRects,self.blockIndices) == "false" or forced == "true":
+            for j,i in enumerate(indices):
+                self.blocks[i].rect = newRects[j]
             if dir == "down":
-                self.pos[1] = self.pos[1] + length
+                self.pos[1] = self.pos[1] + playingField.blockSize*steps
             elif dir == "left":
-                self.pos[0] = self.pos[0] - length
+                self.pos[0] = self.pos[0] - playingField.blockSize*steps
             elif dir == "right":
-                self.pos[0] = self.pos[0] + length
+                self.pos[0] = self.pos[0] + playingField.blockSize*steps
             elif dir == "up":
-                self.pos[1] = self.pos[1] - length
+                self.pos[1] = self.pos[1] - playingField.blockSize*steps
         elif playingField.collides(oldRects,newRects,self.blockIndices) == "true" and dir == "down": 
             self.stuck = "true"
             
@@ -200,18 +207,21 @@ class CompleteBlock(): #TODO: Lookup Python Movable
                     blockCounter = blockCounter + 1
                     
     def deleteBlocks(self,blockIndices):
-        deletedBlocks = pygame.sprite.RenderUpdates()
+        deletedBlockSprites = pygame.sprite.RenderUpdates()
+        deletedBlocks = []
         for block in self.blocks:
+            print "id: " + str(block.id)
             if block.id in blockIndices:
-                #print "weg"
+                print "weg"
                 self.allSprites.remove(block.sprite)
-                deletedBlocks.add(block.sprite)
-                self.blocks.remove(block)
+                deletedBlockSprites.add(block.sprite)
+                deletedBlocks.append(block)
         
-        return deletedBlocks
-
-                
+        for block in deletedBlocks:
+            self.blocks.remove(block)
+        deletedBlocks = []
         
+        return deletedBlockSprites
 
     def __deepcopy__(self,dup):
         return CompleteBlock(copy.deepcopy(self.height, dup),copy.deepcopy(self.width, dup),copy.deepcopy(self.numbers, dup),copy.deepcopy(self.imageName, dup),copy.deepcopy(self.blockSize, dup))
@@ -231,7 +241,7 @@ class PlayingField:
         
         self.fieldSurface = pygame.Surface((self.width*self.blockSize,self.height*self.blockSize))
         self.fieldSurface.fill((120,100,50))
-        self.fieldSurface2 = pygame.Surface((640,480))
+        self.fieldSurface2 = pygame.Surface((720,540))
         self.fieldSurface2.fill((120,100,50))
         
         self.collisionArray = []
@@ -262,14 +272,18 @@ class PlayingField:
             for j in range(self.width):
                 self.collisionArray[i][j] = 0
         
+        #print self.collisionArray
+        
         for block in self.activeBlocks:
             for lBlock in block.blocks:
                 pos = lBlock.rect.topleft
+                #print "x: " + str((pos[1]-self.pos[1])/self.blockSize) + " y: " + str((pos[0]-self.pos[0])/self.blockSize)
                 self.collisionArray[(pos[1]-self.pos[1])/self.blockSize][(pos[0]-self.pos[0])/self.blockSize] = lBlock.id
+                
 
     def moveActiveBlock(self,dir):
         if self.activeBlocks[-1].stuck != "true":
-            self.activeBlocks[-1].move(dir,self.blockSize,self)
+            self.activeBlocks[-1].move(dir,self)
         self.updateCollisionArray()
     
     def rotateActiveBlock(self):
@@ -280,13 +294,19 @@ class PlayingField:
     def moveBlocksDown(self):
         for block in self.activeBlocks:
             if block.stuck != "true":
-                block.move("down",self.blockSize,self)
+                block.move("down",self)
     
     def update(self):
         self.moveBlocksDown()
-        self.updateCollisionArray()
+        
         lines = self.checkReadyLines()
-        self.deleteReadyLines(lines)
+        stuck = "true"
+        for block in self.activeBlocks:
+            if block.stuck == "false":
+                stuck = "false"
+        if stuck == "true":
+            self.deleteReadyLines(lines)
+        self.updateCollisionArray()
         
     def collides(self,oldRects,newRects,indices):
         oldTuples = []
@@ -324,11 +344,30 @@ class PlayingField:
     def deleteReadyLines(self,lines):
         for lineIndex in lines:
             line = self.collisionArray[lineIndex]
+            print "Line: " + str(line)
             for block in self.activeBlocks:
                 blockIndices = [i for i in line if i in block.blockIndices]
+                print "Blockindices: " + str(blockIndices)
                 self.deletedBlocks.add(block.deleteBlocks(blockIndices))
-                block.stuck = "false"
-        self.updateCollisionArray()
+        
+        if len(lines) > 0:
+            upperList = self.collisionArray[0:lines[0]]
+            print "upper  " + str(upperList)
+            for block in self.activeBlocks:
+                down = "false"
+                intersects = []
+                for row in upperList:
+                    print "indices  " + str(block.blockIndices)
+                    print "row      " + str(row)
+                    
+                    intersects.extend(list(set(block.blockIndices) & set(row)))
+                    if len(intersects)>0:
+                        down = "true"
+                if down == "true":
+                    print "intersects " + str(intersects)
+                    block.move("down",self,"true",len(lines),intersects)
+        self.allSprites.remove(self.deletedBlocks)
+        #print self.collisionArray
                 
 def main():
     pygame.display.init()
@@ -359,8 +398,9 @@ def main():
         input(pygame.event.get(),playingField)
         #playingField.update()
 
-        playingField.deletedBlocks.clear(screen, playingField.fieldSurface2)
-        playingField.deletedBlocks.empty()
+        if len(playingField.deletedBlocks) > 0:
+            playingField.deletedBlocks.clear(screen, playingField.fieldSurface2)
+            playingField.deletedBlocks.empty()
 
         playingField.allSprites.clear(screen, playingField.fieldSurface2)
         dirtyRects = playingField.allSprites.draw(screen)
