@@ -12,6 +12,7 @@ Maybe:
 - GUI to start a game
 - fast falling Block animation
 - Game against KI with the same playing game
+- the playingField will stretch and collapse
 
 
 
