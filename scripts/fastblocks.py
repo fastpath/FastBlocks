@@ -9,7 +9,7 @@ Created on 25.07.2011
 - graphics
 - check if theres a solid line (done!)
 - points
-- delete lines, when theres a incomplete line between them
+- delete lines, when theres a incomplete line between them (done!?)
 - use dirtyrects (done!)
 '''
 
@@ -259,9 +259,9 @@ class CompleteBlock(): #TODO: Lookup Python Movable
         deletedBlockSprites = pygame.sprite.RenderUpdates()
         deletedBlocks = []
         for block in self.blocks:
-            print "id: " + str(block.id)
+            #print "id: " + str(block.id)
             if block.id in blockIndices:
-                print "weg"
+                #print "weg"
                 self.allSprites.remove(block.sprite)
                 deletedBlockSprites.add(block.sprite)
                 deletedBlocks.append(block)
@@ -285,7 +285,8 @@ class PlayingField:
         self.allSprites = pygame.sprite.RenderUpdates()
         self.deletedBlocks = pygame.sprite.RenderUpdates()
         self.activeBlocks = []
-        self.nextBlockId = False
+        self.nextBlockId = -1
+        self.nextBlockText = False
         self.nextBlock = False
         self.blockIndex = 1
         self.pos = pos  
@@ -307,15 +308,17 @@ class PlayingField:
             self.collisionArray.append(row)        
 
     def spawnRandBlock(self):
-        if self.nextBlockId == False:
+        if self.nextBlockId == -1:
             random.seed(time.time()*256)
             self.nextBlockId = random.randint(0,len(self.blockList)-1)
+        
         dup = copy.deepcopy(self.blockList[self.nextBlockId])
         self.activeBlocks.append(dup)
         self.activeBlocks[-1].setSpawnPos(((self.width/2)*self.blockSize+self.pos[0],0+self.pos[1]))
         self.allSprites.add(self.activeBlocks[-1].allSprites)
         self.blockIndex = self.activeBlocks[-1].setBlockIndex(self.blockIndex)
         self.updateCollisionArray()
+        
         random.seed(time.time()*256)
         self.nextBlockId = random.randint(0,len(self.blockList)-1)
         
@@ -376,10 +379,16 @@ class PlayingField:
         if pygame.font:
             if self.scoreText == False:
                 font = pygame.font.Font(os.path.join(data_dir,'fonts', 'acknowtt.ttf'), 36)
-                self.scoreText = Text(font,str(self.score),(80,10),0)
+                self.scoreText = Text(font,"Score: " + str(self.score),(150,10),0)
                 self.allSprites.add(self.scoreText)
             else:
-                self.scoreText.update(str(self.score))
+                self.scoreText.update("Score: " + str(self.score))
+            if self.nextBlockText == False:
+                font = pygame.font.Font(os.path.join(data_dir,'fonts', 'acknowtt.ttf'), 36)
+                self.nextBlockText = Text(font,"NextBlockId: " + str(self.nextBlockId),(150,30),0)
+                self.allSprites.add(self.nextBlockText)
+            else:
+                self.nextBlockText.update("NextBlockId: " + str(self.nextBlockId))
         
     def collides(self,oldRects,newRects,indices):
         oldTuples = []
@@ -417,27 +426,52 @@ class PlayingField:
     def deleteReadyLines(self,lines):
         for lineIndex in lines:
             line = self.collisionArray[lineIndex]
-            print "Line: " + str(line)
+            #print "Line: " + str(line)
             for block in self.activeBlocks:
                 blockIndices = [i for i in line if i in block.blockIndices]
-                print "Blockindices: " + str(blockIndices)
+                #print "Blockindices: " + str(blockIndices)
                 self.deletedBlocks.add(block.deleteBlocks(blockIndices))
         
         if len(lines) > 0:
+            downerList = False
+            print "kollisionen  " + str(lines)
+            for i in range(len(lines)):
+                if len(lines)-2-i >= 0:
+                    downerList = self.collisionArray[lines[len(lines)-2-i]:lines[len(lines)-1-i]]
+                    #diff = lines[len(lines)-1-i] - lines[len(lines)-2-i]
+                    #if ( diff > 1):
+                    #    for j in range(diff-1):
+                    #        print "Special  " + str(lines[len(lines)-2-i]+j+1)
+                    #        
+                    #    print "SPECIAL"
+                print "hihi " + str(lines[len(lines)-1-i])
+            
+            print "downerList : " + str(downerList)
+            
             upperList = self.collisionArray[0:lines[0]]
             #print "upper  " + str(upperList)
+            
             for block in self.activeBlocks:
-                down = False
-                intersects = []
+                intersectsUpper = []
+                intersectsDowner = []
+                downUpper = False
+                downDowner = False
                 for row in upperList:
                     #print "indices  " + str(block.blockIndices)
                     #print "row      " + str(row)
-                    intersects.extend(list(set(block.blockIndices) & set(row)))
-                    if len(intersects)>0:
-                        down = True
-                if down == True:
-                    #print "intersects " + str(intersects)
-                    block.move("down",self,True,len(lines),intersects)
+                    intersectsUpper.extend(list(set(block.blockIndices) & set(row)))
+                    if len(intersectsUpper)>0:
+                        downUpper = True
+                if downerList != False:
+                    for row in downerList:
+                        intersectsDowner.extend(list(set(block.blockIndices) & set(row)))
+                        if len(intersectsDowner)>0:
+                            downDowner = True
+                    
+                if downUpper:
+                    block.move("down",self,True,len(lines),intersectsUpper)
+                if downDowner:
+                    block.move("down",self,True,1,intersectsDowner)
         self.allSprites.remove(self.deletedBlocks)
         #print self.collisionArray
                 
