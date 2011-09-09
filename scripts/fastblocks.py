@@ -9,6 +9,7 @@ Created on 25.07.2011
 - graphics
 - check if theres a solid line (done!)
 - points
+- delete lines, when theres a incomplete line between them
 - use dirtyrects (done!)
 '''
 
@@ -17,8 +18,11 @@ import xml.dom.minidom as dom
 from pygame.compat import geterror
 from pygame.locals import *
 
+if not pygame.font: print ('Warning, fonts disabled')
+
 main_dir = os.path.split(os.path.abspath(__file__))[0]
-data_dir = os.path.join(main_dir, '../data')
+data_dir = os.path.join(main_dir, '..','data')
+
 
 def load_image(name, colorkey="True"):
     fullname = os.path.join(data_dir, name)
@@ -109,6 +113,22 @@ def input(events,playingField):
                     
             #elif event.key == 100:
             #    playingField.moveActiveBlock("right")
+            
+class Text(pygame.sprite.Sprite):
+    # red ,green ,blue, yello,cyan,pink,grau,weis
+    col=[(255,0,0),(0,255,0),(0,0,255),(255,255,0),(0,255,255),(255,0,255),(128,128,128),(255,255,255)]
+    def __init__(self,font,text, pos,color):
+        pygame.sprite.Sprite.__init__(self)
+        self.color = self.col[color]
+        self.font = font
+        self.font.set_bold(True)
+        self.image = self.font.render(text, True,self.color)
+        self.rect = self.image.get_rect(center = pos)
+        self.pos = pos
+        
+    def update(self,text):
+        self.image = self.font.render(text, True,self.color)
+        self.rect = self.image.get_rect(center = self.pos)
 
 class Block(pygame.sprite.Sprite):
     
@@ -270,6 +290,9 @@ class PlayingField:
         self.blockIndex = 1
         self.pos = pos  
         
+        self.scoreText = False
+        self.score = 0
+        
         self.fieldSurface = pygame.Surface((self.width*self.blockSize,self.height*self.blockSize))
         self.fieldSurface.fill((120,100,50))
         self.fieldSurface2 = pygame.Surface(screenDims)
@@ -346,8 +369,17 @@ class PlayingField:
                 stuck = False
         if stuck == True:
             self.deleteReadyLines(lines)
+            self.score = self.score + 100
             self.spawnRandBlock()
         self.updateCollisionArray()
+        
+        if pygame.font:
+            if self.scoreText == False:
+                font = pygame.font.Font(os.path.join(data_dir,'fonts', 'acknowtt.ttf'), 36)
+                self.scoreText = Text(font,str(self.score),(80,10),0)
+                self.allSprites.add(self.scoreText)
+            else:
+                self.scoreText.update(str(self.score))
         
     def collides(self,oldRects,newRects,indices):
         oldTuples = []
@@ -410,7 +442,7 @@ class PlayingField:
         #print self.collisionArray
                 
 def main():
-    
+    pygame.init()
     screen_dims = getScreenDims("config.xml")
     
     pygame.display.init()
