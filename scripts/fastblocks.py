@@ -10,6 +10,7 @@ Created on 25.07.2011
 - check if theres a solid line (done!)
 - points
 - delete lines, when theres a incomplete line between them (done!?)
+- centered position after rotate
 - use dirtyrects (done!)
 '''
 
@@ -35,7 +36,8 @@ def load_image(name, colorkey="True"):
     if colorkey is not None:
         if colorkey is -1:
             colorkey = image.get_at((0,0))
-        image.set_colorkey(colorkey, RLEACCEL)
+        image.set_colorkey(colorkey)
+        image.set_alpha(255)
     return image, image.get_rect()
 
 def getScreenDims(xmlName):
@@ -236,21 +238,27 @@ class CompleteBlock(): #TODO: Lookup Python Movable
         oldRects = []
         for i in range(len(self.blocks)):
             oldRects.append(self.blocks[i].rect)
-        
+
         newRects = []
         blockCounter = 0
-        for j in range(self.width):
-            for i in range(self.height):
-                if self.collisonArray[i][j] == 1:
+        for j in range(self.height):
+            for i in range(self.width):
+                if tmpCollisionArray[i][j] == 1:
+                    'to move the rect in the right position, do it here ;)'
                     newRects.append(pygame.Rect(self.pos[0],self.pos[1],self.blocks[blockCounter].rect[2],self.blocks[blockCounter].rect[3]))
                     newRects[blockCounter] = newRects[blockCounter].move(j*self.blockSize,i*self.blockSize)
                     blockCounter = blockCounter + 1        
 
         if playingField.collides(oldRects,newRects,self.blockIndices) == False:
             self.collisonArray = tmpCollisionArray
+            
+            newPos = (oldRects[len(oldRects)/2-1].topleft[0] - newRects[len(newRects)/2-1].topleft[0] , oldRects[len(oldRects)/2-1].topleft[1] - newRects[len(newRects)/2-1].topleft[1])
+            print "new Position: " + str(newPos)
+            
             self.width, self.height = self.height, self.width
             for i in range(len(self.blocks)):
                 self.blocks[i].rect = newRects[i]
+                
             print "passt"
         else:
             print "passt nicht"
