@@ -103,7 +103,7 @@ def input(events,playingField):
         elif event.type == USEREVENT+1:
             playingField.update()
         elif event.type == USEREVENT+2:
-            print "USEREVENT 2!!!"
+            #print "USEREVENT 2!!!"
             if keystate[K_LEFT]:
                 playingField.moveActiveBlock("left")
             elif keystate[K_RIGHT]:
@@ -404,7 +404,7 @@ class PlayingField:
                 else:
                     test.append(False)
             else:
-                print "stuck"
+                #print "stuck"
                 return True
             
         if True in test:
@@ -435,17 +435,26 @@ class PlayingField:
         if len(lines) > 0:
             downerList = False
             print "kollisionen  " + str(lines)
+            downerList = []
+            batch = 0
             for i in range(len(lines)):
                 if len(lines)-2-i >= 0:
-                    downerList = self.collisionArray[lines[len(lines)-2-i]:lines[len(lines)-1-i]]
-                    #diff = lines[len(lines)-1-i] - lines[len(lines)-2-i]
-                    #if ( diff > 1):
-                    #    for j in range(diff-1):
-                    #        print "Special  " + str(lines[len(lines)-2-i]+j+1)
-                    #        
-                    #    print "SPECIAL"
-                print "hihi " + str(lines[len(lines)-1-i])
-            
+                    #downerList = self.collisionArray[lines[len(lines)-2-i]:lines[len(lines)-1-i]]
+                    diff = lines[len(lines)-1-i] - lines[len(lines)-2-i]
+                    #downerList.append(diff)
+                    
+                    if ( diff > 1):
+                        for j in range(diff-1):
+                            print "AHA  index: " + str(lines[len(lines)-2-i]+j+1) + " content " + str(self.collisionArray[lines[len(lines)-2-i]+j+1])
+                            downerList.append(self.collisionArray[lines[len(lines)-2-i]+j+1])
+                            downerList[-1].extend([i+1+batch])
+                            print "Special  " + str(lines[len(lines)-2-i]+j+1) + " diff " + str(diff) + " verschub = " + str(i+1+batch)
+                            print "SPECIAL"
+                    batch = batch + diff - 1
+                            
+                        
+                print "hihi   " + str(lines[len(lines)-1-i])
+            print self.collisionArray
             print "downerList : " + str(downerList)
             
             upperList = self.collisionArray[0:lines[0]]
@@ -453,7 +462,7 @@ class PlayingField:
             
             for block in self.activeBlocks:
                 intersectsUpper = []
-                intersectsDowner = []
+                
                 downUpper = False
                 downDowner = False
                 for row in upperList:
@@ -464,14 +473,14 @@ class PlayingField:
                         downUpper = True
                 if downerList != False:
                     for row in downerList:
-                        intersectsDowner.extend(list(set(block.blockIndices) & set(row)))
+                        intersectsDowner = []
+                        intersectsDowner.extend(list(set(block.blockIndices) & set(row[:-1])))
                         if len(intersectsDowner)>0:
-                            downDowner = True
+                            block.move("down",self,True,row[-1],intersectsDowner)    
                     
                 if downUpper:
                     block.move("down",self,True,len(lines),intersectsUpper)
-                if downDowner:
-                    block.move("down",self,True,1,intersectsDowner)
+                    
         self.allSprites.remove(self.deletedBlocks)
         #print self.collisionArray
                 

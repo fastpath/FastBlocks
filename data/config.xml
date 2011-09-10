@@ -1,34 +1,34 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <root>
 	<screenDims x="1024" y="768" />
-	<playField width="10" height="15" x="50" y="50" />
-	<blockSize value="30" />
+	<playField width="9" height="15" x="50" y="50" />
+	<blockSize value="25" />
 	<blocks>
-		<block height="2" width="3" image="images/block_red.jpg">
+		<block height="2" width="3" image="images/block_red_25.jpg">
 			010
 			111			
 		</block>
-		<block height="2" width="2" image="images/block_blue.jpg" colorkey="false">
+		<block height="2" width="2" image="images/block_blue_25.jpg" colorkey="false">
 			11
 			11			
 		</block>
-		<block height="3" width="2" image="images/block_yellow.jpg">
+		<block height="3" width="2" image="images/block_yellow_25.jpg">
 			01
 			01
 			11			
 		</block>
-		<block height="3" width="2" image="images/block_green.jpg">
+		<block height="3" width="2" image="images/block_green_25.jpg">
 			10
 			10
 			11			
 		</block>
-		<block height="4" width="1" image="images/block_heaven.jpg">
+		<block height="4" width="1" image="images/block_heaven_25.jpg">
 			1
 			1
 			1
 			1			
 		</block>
-		<block height="3" width="2" image="images/block_purple.jpg">
+		<block height="3" width="2" image="images/block_purple_25.jpg">
 			01
 			11
 			10			
