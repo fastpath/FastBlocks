@@ -10,7 +10,7 @@ Created on 25.07.2011
 - check if theres a solid line (done!)
 - points
 - delete lines, when theres a incomplete line between them (done!?)
-- centered position after rotate
+- centered position after rotate (done!?)
 - use dirtyrects (done!)
 '''
 
@@ -239,13 +239,21 @@ class CompleteBlock(): #TODO: Lookup Python Movable
         for i in range(len(self.blocks)):
             oldRects.append(self.blocks[i].rect)
 
+        counter = 0
+        for j in range(self.height):
+            for i in range(self.width):
+                if tmpCollisionArray[i][j] == 1:
+                    if counter == len(self.blocks)/2:
+                        newPos = (oldRects[len(self.blocks)/2].topleft[0] - (self.pos[0] + j*self.blockSize) ,oldRects[len(self.blocks)/2].topleft[1] - (self.pos[1] + i*self.blockSize))
+                        print "neue Posi::  " + str(newPos)
+                    counter = counter + 1
         newRects = []
         blockCounter = 0
         for j in range(self.height):
             for i in range(self.width):
                 if tmpCollisionArray[i][j] == 1:
                     'to move the rect in the right position, do it here ;)'
-                    newRects.append(pygame.Rect(self.pos[0],self.pos[1],self.blocks[blockCounter].rect[2],self.blocks[blockCounter].rect[3]))
+                    newRects.append(pygame.Rect(self.pos[0] + newPos[0], self.pos[1] + newPos[1],self.blocks[blockCounter].rect[2],self.blocks[blockCounter].rect[3]))
                     newRects[blockCounter] = newRects[blockCounter].move(j*self.blockSize,i*self.blockSize)
                     blockCounter = blockCounter + 1        
 
