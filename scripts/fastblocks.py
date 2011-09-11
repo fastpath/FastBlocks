@@ -8,8 +8,10 @@ Created on 25.07.2011
 - reset of block ids
 - graphics
 - check if theres a solid line (done!)
+- GUI
 - points
 - delete lines, when theres a incomplete line between them (done!?)
+- animation when deleting blocks
 - centered position after rotate (done!?)
 - use dirtyrects (done!)
 '''
@@ -23,9 +25,10 @@ if not pygame.font: print ('Warning, fonts disabled')
 
 main_dir = os.path.split(os.path.abspath(__file__))[0]
 data_dir = os.path.join(main_dir, '..','data')
+animation = False
 
-
-def load_image(name, colorkey="True"):
+'helper function to load an image with a colorkey (transparent area)'
+def load_image(name, colorkey=None):
     fullname = os.path.join(data_dir, name)
     try:
         image = pygame.image.load(fullname).convert()
@@ -40,15 +43,16 @@ def load_image(name, colorkey="True"):
         image.set_alpha(255)
     return image, image.get_rect()
 
+'get the resolution for the game window'
 def getScreenDims(xmlName):
     tree = dom.parse(os.path.join(data_dir, xmlName))
     for entry in tree.firstChild.childNodes:
         if entry.nodeName == "screenDims":
             scr_x = entry.getAttribute("x")
             scr_y = entry.getAttribute("y")
-   
     return (int(scr_x),int(scr_y))
 
+'parsing of config-xml'
 def initialize(xmlName):
     tree = dom.parse(os.path.join(data_dir, xmlName))
     for entry in tree.firstChild.childNodes:
@@ -65,6 +69,7 @@ def initialize(xmlName):
 
     playingField = PlayingField(int(p_height),int(p_width),(int(p_x),int(p_y)),(int(scr_x),int(scr_y)),int(blockSize))
     
+    'the playingField gets its blocks'
     for entry in tree.firstChild.childNodes:
         if entry.nodeName == "blocks":
             for block in entry.childNodes:
@@ -74,13 +79,15 @@ def initialize(xmlName):
                     b_height = block.getAttribute("height")
                     b_width = block.getAttribute("width")
                     b_image = block.getAttribute("image")
-                    b_colorkey = block.getAttribute("colorkey")
+                    b_colorkey = block.getAttribute("colorkey")  #TODO: individual colorkeys
                     playingField.blockList.append(CompleteBlock(int(b_height),int(b_width),b_numbers,b_image,int(blockSize)))
-                    
-                    print "colorkey " + b_colorkey #TODO: individual colorkeys
+                elif block.nodeName == "crossBlock":
+                    cb_image = block.getAttribute("image")
+                    playingField.crossBlock = Block(cb_image)
     
     return playingField
 
+'handler for key-input and timers'
 def input(events,playingField):
     keystate = pygame.key.get_pressed()
 
@@ -98,23 +105,20 @@ def input(events,playingField):
                 pygame.time.set_timer(USEREVENT+2,200)
             elif event.key == pygame.K_RIGHT:
                 playingField.moveActiveBlock("right")
+                'timer for moving a block with key pressed'
                 pygame.time.set_timer(USEREVENT+2,200)
             elif event.key == pygame.K_SPACE:
                 playingField.rotateActiveBlock()
-                
         elif event.type == USEREVENT+1:
             playingField.update()
+        
         elif event.type == USEREVENT+2:
-            #print "USEREVENT 2!!!"
             if keystate[K_LEFT]:
                 playingField.moveActiveBlock("left")
             elif keystate[K_RIGHT]:
                 playingField.moveActiveBlock("right")
             elif keystate[K_LEFT] & keystate[K_RIGHT] == False:
                 pygame.time.set_timer(USEREVENT+2,0)
-                    
-            #elif event.key == 100:
-            #    playingField.moveActiveBlock("right")
             
 class Text(pygame.sprite.Sprite):
     # red ,green ,blue, yello,cyan,pink,grau,weis
@@ -164,7 +168,6 @@ class CompleteBlock(): #TODO: Lookup Python Movable
         
         ' group of all block-sprites'
         self.allSprites = pygame.sprite.RenderUpdates()
-        
         
         ' image and topleft coordinates of the whole block'
         self.imageName = image
@@ -245,7 +248,6 @@ class CompleteBlock(): #TODO: Lookup Python Movable
                 if tmpCollisionArray[i][j] == 1:
                     if counter == len(self.blocks)/2:
                         newPos = (oldRects[len(self.blocks)/2].topleft[0] - (self.pos[0] + j*self.blockSize) ,oldRects[len(self.blocks)/2].topleft[1] - (self.pos[1] + i*self.blockSize))
-                        print "neue Posi::  " + str(newPos)
                     counter = counter + 1
         newRects = []
         blockCounter = 0
@@ -259,15 +261,9 @@ class CompleteBlock(): #TODO: Lookup Python Movable
 
         if playingField.collides(oldRects,newRects,self.blockIndices) == False:
             self.collisonArray = tmpCollisionArray
-            
-            newPos = (oldRects[len(oldRects)/2-1].topleft[0] - newRects[len(newRects)/2-1].topleft[0] , oldRects[len(oldRects)/2-1].topleft[1] - newRects[len(newRects)/2-1].topleft[1])
-            print "new Position: " + str(newPos)
-            
             self.width, self.height = self.height, self.width
             for i in range(len(self.blocks)):
                 self.blocks[i].rect = newRects[i]
-                
-            print "passt"
         else:
             print "passt nicht"
                          
@@ -287,6 +283,11 @@ class CompleteBlock(): #TODO: Lookup Python Movable
         deletedBlocks = []
         
         return deletedBlockSprites
+    
+    def changeImage(self,indices,image):
+        for block in self.blocks:
+            if block.id in indices:
+                block.image = image
 
     def __deepcopy__(self,dup):
         return CompleteBlock(copy.deepcopy(self.height, dup),copy.deepcopy(self.width, dup),copy.deepcopy(self.numbers, dup),copy.deepcopy(self.imageName, dup),copy.deepcopy(self.blockSize, dup))
@@ -296,25 +297,39 @@ class PlayingField:
     def __init__(self,height,width,pos,screenDims,blockSize):
         self.width = width
         self.height = height
+        self.pos = pos 
+        
         self.blockSize = blockSize
         self.blockList = []
         self.allSprites = pygame.sprite.RenderUpdates()
+        
         self.deletedBlocks = pygame.sprite.RenderUpdates()
         self.activeBlocks = []
+        self.crossBlock = None
         self.nextBlockId = -1
         self.nextBlockText = False
         self.nextBlock = False
         self.blockIndex = 1
-        self.pos = pos  
+         
         
+        self.linesText = False
+        self.linesCount = 0
         self.scoreText = False
         self.score = 0
         
-        self.fieldSurface = pygame.Surface((self.width*self.blockSize,self.height*self.blockSize))
-        self.fieldSurface.fill((120,100,50))
+        fbg_image, rect = load_image("images/fullbackground.bmp")
+        bg_image,rect = load_image("images/background.bmp")
+        pv_image,rect = load_image("images/preview.bmp")
+        
+        'Appearance of the whole game screen'
+        self.background = pygame.Surface((self.width*self.blockSize,self.height*self.blockSize))
+        self.background.blit(bg_image,(0,0))
+        self.preview = pygame.Surface((4*self.blockSize,4*self.blockSize))
+        self.preview.blit(pv_image,(0,0))
         self.fieldSurface2 = pygame.Surface(screenDims)
-        self.fieldSurface2.fill((100,50,50))
-        self.fieldSurface2.blit(self.fieldSurface,self.pos)
+        self.fieldSurface2.blit(fbg_image,(0,0))
+        self.fieldSurface2.blit(self.background,self.pos)
+        self.fieldSurface2.blit(self.preview, (self.pos[0] + self.width*self.blockSize + self.blockSize,self.pos[1] ))
         
         self.collisionArray = []
         for i in range(self.height):
@@ -343,7 +358,7 @@ class PlayingField:
             self.deletedBlocks.add(self.nextBlock.allSprites)
         
         self.nextBlock = copy.deepcopy(self.blockList[self.nextBlockId])
-        self.nextBlock.setSpawnPos((self.width*self.blockSize+self.pos[0]+30,self.pos[1]))
+        self.nextBlock.setSpawnPos((self.pos[0] + self.width*self.blockSize + self.blockSize,self.pos[1] ))
         self.allSprites.add(self.nextBlock.allSprites)
         
         #print "nextBlockId: " + str(self.nextBlockId)
@@ -378,33 +393,45 @@ class PlayingField:
                 block.move("down",self)
     
     def update(self):
-        
-        self.moveBlocksDown()
-        
-        lines = self.checkReadyLines()
-        stuck = True
-        for block in self.activeBlocks:
-            if block.stuck == False:
-                stuck = False
-        if stuck == True:
-            self.deleteReadyLines(lines)
-            self.score = self.score + 100
-            self.spawnRandBlock()
-        self.updateCollisionArray()
-        
-        if pygame.font:
-            if self.scoreText == False:
-                font = pygame.font.Font(os.path.join(data_dir,'fonts', 'acknowtt.ttf'), 36)
-                self.scoreText = Text(font,"Score: " + str(self.score),(150,10),0)
-                self.allSprites.add(self.scoreText)
+
+        if animation == False:        
+            self.moveBlocksDown()
+            stuck = True
+            for block in self.activeBlocks:
+                if block.stuck == False:
+                    stuck = False
+            
+            if stuck == True:
+                lines = self.checkReadyLines()
+                deletedLinesCount = 0
+                if len(lines)>0:
+                    deletedLinesCount = self.deleteReadyLines(lines)
+                    self.linesCount = self.linesCount + deletedLinesCount
+                self.score = self.score + 15 + 50 * deletedLinesCount
+                self.spawnRandBlock()
+            self.updateCollisionArray()
+            
+            if pygame.font:
+                if self.scoreText == False:
+                    font = pygame.font.Font(os.path.join(data_dir,'fonts', 'acknowtt.ttf'), 28)
+                    self.scoreText = Text(font,"Score: " + str(self.score),((self.width+4)*self.blockSize + self.blockSize - 10,self.pos[1] + self.height/3*self.blockSize+18),0)
+                    self.allSprites.add(self.scoreText)
+                else:
+                    self.scoreText.update("Score: " + str(self.score))
+                #if self.nextBlockText == False:
+                #    font = pygame.font.Font(os.path.join(data_dir,'fonts', 'acknowtt.ttf'), 28)
+                #    self.nextBlockText = Text(font,"NextBlockId: " + str(self.nextBlockId),((self.width-3)/2*self.blockSize,self.pos[1] + self.height*self.blockSize+18*2),0)
+                #    self.allSprites.add(self.nextBlockText)
+                #else:
+                #    self.nextBlockText.update("NextBlockId: " + str(self.nextBlockId))
+                if self.linesText == False:
+                    font = pygame.font.Font(os.path.join(data_dir,'fonts', 'acknowtt.ttf'), 28)
+                    self.linesText = Text(font,"Lines: " + str(self.linesCount),((self.width+4)*self.blockSize + self.blockSize -10,self.pos[1] + self.height/3*self.blockSize+18*2),0)
+                    self.allSprites.add(self.linesText)
+                else:
+                    self.linesText.update("Lines: " + str(self.linesCount))
             else:
-                self.scoreText.update("Score: " + str(self.score))
-            if self.nextBlockText == False:
-                font = pygame.font.Font(os.path.join(data_dir,'fonts', 'acknowtt.ttf'), 36)
-                self.nextBlockText = Text(font,"NextBlockId: " + str(self.nextBlockId),(150,30),0)
-                self.allSprites.add(self.nextBlockText)
-            else:
-                self.nextBlockText.update("NextBlockId: " + str(self.nextBlockId))
+                print "trololololololol"
         
     def collides(self,oldRects,newRects,indices):
         oldTuples = []
@@ -445,60 +472,61 @@ class PlayingField:
             #print "Line: " + str(line)
             for block in self.activeBlocks:
                 blockIndices = [i for i in line if i in block.blockIndices]
+                block.changeImage(blockIndices,self.crossBlock.image)
                 #print "Blockindices: " + str(blockIndices)
                 self.deletedBlocks.add(block.deleteBlocks(blockIndices))
-        
-        if len(lines) > 0:
-            downerList = False
-            print "kollisionen  " + str(lines)
-            downerList = []
-            batch = 0
-            for i in range(len(lines)):
-                if len(lines)-2-i >= 0:
-                    #downerList = self.collisionArray[lines[len(lines)-2-i]:lines[len(lines)-1-i]]
-                    diff = lines[len(lines)-1-i] - lines[len(lines)-2-i]
-                    #downerList.append(diff)
-                    
-                    if ( diff > 1):
-                        for j in range(diff-1):
-                            print "AHA  index: " + str(lines[len(lines)-2-i]+j+1) + " content " + str(self.collisionArray[lines[len(lines)-2-i]+j+1])
-                            downerList.append(self.collisionArray[lines[len(lines)-2-i]+j+1])
-                            downerList[-1].extend([i+1+batch])
-                            print "Special  " + str(lines[len(lines)-2-i]+j+1) + " diff " + str(diff) + " verschub = " + str(i+1+batch)
-                            print "SPECIAL"
-                    batch = batch + diff - 1
-                            
-                        
-                print "hihi   " + str(lines[len(lines)-1-i])
-            print self.collisionArray
-            print "downerList : " + str(downerList)
-            
-            upperList = self.collisionArray[0:lines[0]]
-            #print "upper  " + str(upperList)
-            
-            for block in self.activeBlocks:
-                intersectsUpper = []
+
+        #print "kollisionen  " + str(lines)
+        downerList = []
+        batch = 0
+        for i in range(len(lines)):
+            if len(lines)-2-i >= 0:
+                #downerList = self.collisionArray[lines[len(lines)-2-i]:lines[len(lines)-1-i]]
+                diff = lines[len(lines)-1-i] - lines[len(lines)-2-i]
+                #downerList.append(diff)
                 
-                downUpper = False
-                downDowner = False
-                for row in upperList:
-                    #print "indices  " + str(block.blockIndices)
-                    #print "row      " + str(row)
-                    intersectsUpper.extend(list(set(block.blockIndices) & set(row)))
-                    if len(intersectsUpper)>0:
-                        downUpper = True
-                if downerList != False:
-                    for row in downerList:
-                        intersectsDowner = []
-                        intersectsDowner.extend(list(set(block.blockIndices) & set(row[:-1])))
-                        if len(intersectsDowner)>0:
-                            block.move("down",self,True,row[-1],intersectsDowner)    
+                if ( diff > 1):
+                    for j in range(diff-1):
+                        #print "AHA  index: " + str(lines[len(lines)-2-i]+j+1) + " content " + str(self.collisionArray[lines[len(lines)-2-i]+j+1])
+                        downerList.append(self.collisionArray[lines[len(lines)-2-i]+j+1])
+                        downerList[-1].extend([i+1+batch])
+                        #print "Special  " + str(lines[len(lines)-2-i]+j+1) + " diff " + str(diff) + " verschub = " + str(i+1+batch)
+                        #print "SPECIAL"
+                batch = batch + diff - 1
+                        
                     
-                if downUpper:
-                    block.move("down",self,True,len(lines),intersectsUpper)
+        #print "hihi   " + str(lines[len(lines)-1-i])
+        #print self.collisionArray
+        #print "downerList : " + str(downerList)
+            
+        upperList = self.collisionArray[0:lines[0]]
+        #print "upper  " + str(upperList)
+            
+        for block in self.activeBlocks:
+            intersectsUpper = []
+                
+            downUpper = False
+            downDowner = False
+            for row in upperList:
+                #print "indices  " + str(block.blockIndices)
+                #print "row      " + str(row)
+                intersectsUpper.extend(list(set(block.blockIndices) & set(row)))
+                if len(intersectsUpper)>0:
+                    downUpper = True
+            if downerList != False:
+                for row in downerList:
+                    intersectsDowner = []
+                    intersectsDowner.extend(list(set(block.blockIndices) & set(row[:-1])))
+                    if len(intersectsDowner)>0:
+                        block.move("down",self,True,row[-1],intersectsDowner)    
+                
+            if downUpper:
+                block.move("down",self,True,len(lines),intersectsUpper)
                     
         self.allSprites.remove(self.deletedBlocks)
         #print self.collisionArray
+        
+        return len(lines)
                 
 def main():
     pygame.init()
@@ -510,22 +538,17 @@ def main():
     pygame.display.set_caption('FastBlocks')
     screen = pygame.display.get_surface() 
     playingField = initialize("config.xml")
-        
+    
+    'timer for moving the blocks down and check and delete ready lines'
     pygame.time.set_timer(USEREVENT+1, 500)
 
-    
-    print len(playingField.blockList)
-    
     playingField.spawnRandBlock()
-                   
     clock = pygame.time.Clock()
-    screen.blit(playingField.fieldSurface2, (0, 0))
     
+    screen.blit(playingField.fieldSurface2, (0, 0))
     pygame.display.flip()    
     while True:
         input(pygame.event.get(),playingField)
-        #playingField.update()
-
         if len(playingField.deletedBlocks) > 0:
             playingField.deletedBlocks.clear(screen, playingField.fieldSurface2)
             playingField.deletedBlocks.empty()

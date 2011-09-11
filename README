@@ -1,1 +1,15 @@
-== FastBlocks ==
+#FastBlocks v 0.01
+==================
+
+FastBlock is a Tetris game written object-oriented in Python 2.6 with help of the pygame library.
+You can see a Screenshot of the actual game in images/screenshot.jpg
+I used only the pygame examples, the internet and a bit of my grey cells to create the code ;)
+maybe somedays it will be used for a tutorial, because I'm on the way to deal with game programming
+
+you can visit my blog under http://thefastpath.blogspot.com/
+
+**missing keyfeatures:**
+* a GUI
+* end condition of a round
+* start of a new round
+* animation of deleting lines

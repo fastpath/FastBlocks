@@ -1,37 +1,43 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <root>
-	<screenDims x="1024" y="768" />
-	<playField width="9" height="15" x="50" y="50" />
+	<screenDims x="500" y="525" />
+	<playField width="12" height="19" x="25" y="25" />
 	<blockSize value="25" />
 	<blocks>
-		<block height="2" width="3" image="images/block_red_25.jpg">
+		<crossBlock image="images/block_cross_25.bmp" />
+		<block height="2" width="3" image="images/block_red_25.bmp">
 			010
 			111			
 		</block>
-		<block height="2" width="2" image="images/block_blue_25.jpg" colorkey="false">
+		<block height="2" width="2" image="images/block_blue_25.bmp" colorkey="false">
 			11
 			11			
 		</block>
-		<block height="3" width="2" image="images/block_yellow_25.jpg">
+		<block height="3" width="2" image="images/block_yellow_25.bmp">
 			01
 			01
 			11			
 		</block>
-		<block height="3" width="2" image="images/block_green_25.jpg">
+		<block height="3" width="2" image="images/block_green_25.bmp">
 			10
 			10
 			11			
 		</block>
-		<block height="4" width="1" image="images/block_heaven_25.jpg">
+		<block height="4" width="1" image="images/block_heaven_25.bmp">
 			1
 			1
 			1
 			1			
 		</block>
-		<block height="3" width="2" image="images/block_purple_25.jpg">
+		<block height="3" width="2" image="images/block_purple_25.bmp">
 			01
 			11
 			10			
+		</block>
+		<block height="3" width="2" image="images/block_orange_25.bmp">
+			10
+			11
+			01			
 		</block>
 	</blocks>
 </root>

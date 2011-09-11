@@ -4,5 +4,13 @@ http://www.doughellmann.com/PyMOTW/copy/
 RenderUpdates
 http://www.sacredchao.net/~piman/writing/sprite-tutorial.shtml
 
-
 http://pygametutorials.wikidot.com
+
+FreeFonts
+http://www.1001freefonts.com/
+
+TextSprite
+http://www.python-forum.de/viewtopic.php?f=4&t=17987
+
+logical operators in Python
+http://farcepest.blogspot.com/2006/09/logical-exclusive-or-in-python.html
