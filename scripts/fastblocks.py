@@ -25,7 +25,6 @@ if not pygame.font: print ('Warning, fonts disabled')
 
 main_dir = os.path.split(os.path.abspath(__file__))[0]
 data_dir = os.path.join(main_dir, '..','data')
-animation = False
 
 'helper function to load an image with a colorkey (transparent area)'
 def load_image(name, colorkey=None):
@@ -119,7 +118,15 @@ def input(events,playingField):
                 playingField.moveActiveBlock("right")
             elif keystate[K_LEFT] & keystate[K_RIGHT] == False:
                 pygame.time.set_timer(USEREVENT+2,0)
-            
+
+def animationControl(events, playingField):
+    for event in events: 
+        if event.type == USEREVENT+3:
+            deletedLinesCount = playingField.deleteReadyLines()
+            playingField.linesCount = playingField.linesCount + deletedLinesCount
+            playingField.updateCollisionArray()
+            playingField.animation = False
+                
 class Text(pygame.sprite.Sprite):
     # red ,green ,blue, yello,cyan,pink,grau,weis
     col=[(255,0,0),(0,255,0),(0,0,255),(255,255,0),(0,255,255),(255,0,255),(128,128,128),(255,255,255)]
@@ -270,7 +277,9 @@ class CompleteBlock(): #TODO: Lookup Python Movable
     def deleteBlocks(self,blockIndices):
         deletedBlockSprites = pygame.sprite.RenderUpdates()
         deletedBlocks = []
+        #print " indices " + str(blockIndices)
         for block in self.blocks:
+            
             #print "id: " + str(block.id)
             if block.id in blockIndices:
                 #print "weg"
@@ -282,12 +291,17 @@ class CompleteBlock(): #TODO: Lookup Python Movable
             self.blocks.remove(block)
         deletedBlocks = []
         
-        return deletedBlockSprites
+        delete = False
+        if len(self.blocks) == 0:
+            delete = True
+        
+        return deletedBlockSprites, delete
     
     def changeImage(self,indices,image):
         for block in self.blocks:
             if block.id in indices:
                 block.image = image
+                #print "chanage change change"
 
     def __deepcopy__(self,dup):
         return CompleteBlock(copy.deepcopy(self.height, dup),copy.deepcopy(self.width, dup),copy.deepcopy(self.numbers, dup),copy.deepcopy(self.imageName, dup),copy.deepcopy(self.blockSize, dup))
@@ -305,6 +319,7 @@ class PlayingField:
         
         self.deletedBlocks = pygame.sprite.RenderUpdates()
         self.activeBlocks = []
+        self.lines = []
         self.crossBlock = None
         self.nextBlockId = -1
         self.nextBlockText = False
@@ -316,6 +331,8 @@ class PlayingField:
         self.linesCount = 0
         self.scoreText = False
         self.score = 0
+        
+        self.animation = False
         
         fbg_image, rect = load_image("images/fullbackground.bmp")
         bg_image,rect = load_image("images/background.bmp")
@@ -393,8 +410,9 @@ class PlayingField:
                 block.move("down",self)
     
     def update(self):
-
-        if animation == False:        
+        #self.animateLines((0,1,2,3,4,5))
+        if self.animation == False: 
+            self.lines = []    
             self.moveBlocksDown()
             stuck = True
             for block in self.activeBlocks:
@@ -402,13 +420,13 @@ class PlayingField:
                     stuck = False
             
             if stuck == True:
-                lines = self.checkReadyLines()
+                self.lines = self.checkReadyLines()
                 deletedLinesCount = 0
-                if len(lines)>0:
-                    deletedLinesCount = self.deleteReadyLines(lines)
-                    self.linesCount = self.linesCount + deletedLinesCount
-                self.score = self.score + 15 + 50 * deletedLinesCount
-                self.spawnRandBlock()
+                if len(self.lines)>0:
+                    self.animateLines()
+                if self.animation == False:
+                    self.score = self.score + 15 + 50 * deletedLinesCount
+                    self.spawnRandBlock()
             self.updateCollisionArray()
             
             if pygame.font:
@@ -466,29 +484,39 @@ class PlayingField:
                 lines.append(i)
         return lines
     
-    def deleteReadyLines(self,lines):
-        for lineIndex in lines:
-            line = self.collisionArray[lineIndex]
+    def deleteReadyLines(self):
+        #print self.collisionArray
+        indices = []
+        for lineIndex in self.lines:
+            indices.extend(self.collisionArray[lineIndex])
             #print "Line: " + str(line)
-            for block in self.activeBlocks:
-                blockIndices = [i for i in line if i in block.blockIndices]
-                block.changeImage(blockIndices,self.crossBlock.image)
-                #print "Blockindices: " + str(blockIndices)
-                self.deletedBlocks.add(block.deleteBlocks(blockIndices))
+        deleteIndices = []
+        for i,block in enumerate(self.activeBlocks):
+            #blockIndices = [i for i in line if i in block.blockIndices]
+            #block.changeImage(blockIndices,self.crossBlock.image)
+            #print "Blockindices: " + str(blockIndices)
+            sprites, delete = block.deleteBlocks(indices)
+            self.deletedBlocks.add(sprites)
+            if delete:
+                deleteIndices.append(i)
+        
+        for offset, index in enumerate(deleteIndices):
+            index -= offset
+            del self.activeBlocks[index]
 
         #print "kollisionen  " + str(lines)
         downerList = []
         batch = 0
-        for i in range(len(lines)):
-            if len(lines)-2-i >= 0:
+        for i in range(len(self.lines)):
+            if len(self.lines)-2-i >= 0:
                 #downerList = self.collisionArray[lines[len(lines)-2-i]:lines[len(lines)-1-i]]
-                diff = lines[len(lines)-1-i] - lines[len(lines)-2-i]
+                diff = self.lines[len(self.lines)-1-i] - self.lines[len(self.lines)-2-i]
                 #downerList.append(diff)
                 
                 if ( diff > 1):
                     for j in range(diff-1):
                         #print "AHA  index: " + str(lines[len(lines)-2-i]+j+1) + " content " + str(self.collisionArray[lines[len(lines)-2-i]+j+1])
-                        downerList.append(self.collisionArray[lines[len(lines)-2-i]+j+1])
+                        downerList.append(self.collisionArray[self.lines[len(self.lines)-2-i]+j+1])
                         downerList[-1].extend([i+1+batch])
                         #print "Special  " + str(lines[len(lines)-2-i]+j+1) + " diff " + str(diff) + " verschub = " + str(i+1+batch)
                         #print "SPECIAL"
@@ -499,7 +527,7 @@ class PlayingField:
         #print self.collisionArray
         #print "downerList : " + str(downerList)
             
-        upperList = self.collisionArray[0:lines[0]]
+        upperList = self.collisionArray[0:self.lines[0]]
         #print "upper  " + str(upperList)
             
         for block in self.activeBlocks:
@@ -521,12 +549,27 @@ class PlayingField:
                         block.move("down",self,True,row[-1],intersectsDowner)    
                 
             if downUpper:
-                block.move("down",self,True,len(lines),intersectsUpper)
+                block.move("down",self,True,len(self.lines),intersectsUpper)
                     
         self.allSprites.remove(self.deletedBlocks)
         #print self.collisionArray
         
-        return len(lines)
+        return len(self.lines)
+    
+    def animateLines(self):
+        indices = []
+        for line in self.lines:
+            indices.extend(self.collisionArray[line])
+
+        for block in self.activeBlocks:
+            block.changeImage(indices,self.crossBlock.image)
+            #print "changechange change"
+
+        pygame.time.set_timer(USEREVENT+3, 300)
+        self.animation = True
+        
+        
+        
                 
 def main():
     pygame.init()
@@ -548,6 +591,14 @@ def main():
     screen.blit(playingField.fieldSurface2, (0, 0))
     pygame.display.flip()    
     while True:
+        
+        while playingField.animation == True:
+            animationControl(pygame.event.get(),playingField)
+            playingField.allSprites.clear(screen, playingField.fieldSurface2)
+            dirtyRects = playingField.allSprites.draw(screen)
+            pygame.display.update(dirtyRects)
+            clock.tick(40)
+        
         input(pygame.event.get(),playingField)
         if len(playingField.deletedBlocks) > 0:
             playingField.deletedBlocks.clear(screen, playingField.fieldSurface2)
@@ -555,8 +606,12 @@ def main():
 
         playingField.allSprites.clear(screen, playingField.fieldSurface2)
         dirtyRects = playingField.allSprites.draw(screen)
+        
         pygame.display.update(dirtyRects)
         clock.tick(40)
+        #if playingField.animation == True:
+        #    pygame.time.wait(800)
+        #    playingField.animation = False
         
         
         
