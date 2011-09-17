@@ -9,9 +9,12 @@ Created on 25.07.2011
 - graphics
 - check if theres a solid line (done!)
 - GUI
-- points
+- points (done?!)
+- highscore (done!)
+- game over screen (done?!)
+- blocks become faster over time
 - delete lines, when theres a incomplete line between them (done!?)
-- animation when deleting blocks
+- animation when deleting blocks (done!?)
 - centered position after rotate (done!?)
 - use dirtyrects (done!)
 '''
@@ -96,19 +99,19 @@ def input(events,playingField):
     for event in events: 
         if event.type == QUIT: 
             sys.exit(0) 
-        elif event.type == MOUSEBUTTONDOWN:
-            playingField.spawnRandBlock()
+        #elif event.type == MOUSEBUTTONDOWN:
+        #    playingField.spawnRandBlock()
         elif event.type == pygame.KEYDOWN and len(playingField.activeBlocks)>0:
             if event.key == pygame.K_LEFT:
                 playingField.moveActiveBlock("left")
-                pygame.time.set_timer(USEREVENT+2,200)
+                pygame.time.set_timer(USEREVENT+2,150)
             elif event.key == pygame.K_RIGHT:
                 playingField.moveActiveBlock("right")
                 'timer for moving a block with key pressed'
-                pygame.time.set_timer(USEREVENT+2,200)
+                pygame.time.set_timer(USEREVENT+2,150)
             elif event.key == pygame.K_SPACE:
                 playingField.rotateActiveBlock()
-        elif event.type == USEREVENT+1:
+        elif event.type == USEREVENT+1 and playingField.resetCheck == False:
             playingField.update()
         
         elif event.type == USEREVENT+2:
@@ -118,11 +121,7 @@ def input(events,playingField):
                 playingField.moveActiveBlock("right")
             elif keystate[K_LEFT] & keystate[K_RIGHT] == False:
                 pygame.time.set_timer(USEREVENT+2,0)
-
-def animationControl(events, playingField):
-    for event in events: 
-        if event.type == USEREVENT+3:
-            
+        elif event.type == USEREVENT+3:
             if playingField.animationCount == 0:
                 deletedLinesCount = playingField.deleteReadyLines()
                 playingField.linesCount = playingField.linesCount + deletedLinesCount
@@ -131,13 +130,24 @@ def animationControl(events, playingField):
                 playingField.animation = False
                 playingField.animationCount = 3
                 pygame.time.set_timer(USEREVENT+3,0)
-                
             elif playingField.animationCount in (3,2,1):
                 playingField.animationCount -= 1
                 playingField.animateLines()
-                
-                
-                
+        elif event.type == USEREVENT+4:
+            print "moneymoney"
+            playingField.allSprites.remove(playingField.gameOverText)
+            playingField.allSprites.remove(playingField.gameOverPointsText)
+            playingField.resetCheck = True
+            pygame.time.set_timer(USEREVENT+4,0)
+
+'''controls the animation steps
+3 - change the block-image to crossBlock
+2 - change the image back to normal
+1 - change it to crossBlock
+0 - delete the line and update everything
+'''
+
+'Class for updatable Text with position and a color'
 class Text(pygame.sprite.Sprite):
     # red ,green ,blue, yello,cyan,pink,grau,weis
     col=[(255,0,0),(0,255,0),(0,0,255),(255,255,0),(0,255,255),(255,0,255),(128,128,128),(255,255,255)]
@@ -154,6 +164,7 @@ class Text(pygame.sprite.Sprite):
         self.image = self.font.render(text, True,self.color)
         self.rect = self.image.get_rect(center = self.pos)
 
+'Sprite-Class for a single Block - will be part of the CompleteBlock'
 class Block(pygame.sprite.Sprite):
     
     def __init__(self,image):
@@ -167,9 +178,8 @@ class Block(pygame.sprite.Sprite):
     def __del__(self):
         print "ICH WURDE ZERTSTOERT"
 
-
+'Container and Controller of the single Block Sprites'
 class CompleteBlock(): #TODO: Lookup Python Movable
-    
     def __init__(self,height,width,numbers,image,blockSize):
         ' width and heigth and blocksize in pixel of the composed blocks'
         self.width = width
@@ -192,12 +202,14 @@ class CompleteBlock(): #TODO: Lookup Python Movable
         self.imageName = image
         self.pos = [0,0]
 
+        ' creating the Array which defines, where the single blocks are'
         for i in range(self.height):
             row = []
             for j in self.numbers[i*self.width:i*self.width+self.width]:
                 row.append(int(j))
             self.collisonArray.append(row)
-                    
+        
+        ' moving the single block-Sprites to the right position according to the collisionArray'
         for j in range(self.width):
             for i in range(self.height):
                 if self.collisonArray[i][j] == 1:
@@ -205,19 +217,28 @@ class CompleteBlock(): #TODO: Lookup Python Movable
                     self.blocks[-1].rect = self.blocks[-1].rect.move(j*blockSize,i*blockSize)
                     self.allSprites.add(self.blocks[-1].sprite)
     
+    'assigning a unique index for every block and returns the last index-value'
     def setBlockIndex(self,index):
         for block in self.blocks:
             self.blockIndices.append(index)
             block.id = index
-            index = index + 1
+            index += 1
         return index
 
+    'setting the position where the block should spawn'
     def setSpawnPos(self,pos):
         self.pos = list(pos)
-        #print pos
         for block in self.blocks:
             block.rect = block.rect.move(self.pos[0],self.pos[1])
-            
+    
+    '''
+    moves all blocks
+    dir - "left","right","down" - movedirection
+    playingField - needed for collision testing
+    forced - True,False - whether there should be checked for collisions
+    steps - number of steps (size of blocksize) to move in one direction
+    intersect - blockindices, which should be moved
+    '''
     def move(self,dir,playingField,forced = False,steps = 1, intersect = None):
         oldRects = []
         newRects = []
@@ -248,8 +269,10 @@ class CompleteBlock(): #TODO: Lookup Python Movable
                 self.pos[1] = self.pos[1] - playingField.blockSize*steps
         elif playingField.collides(oldRects,newRects,self.blockIndices) == True and dir == "down": 
             self.stuck = True
-            
+    
+    'rotating the whole block 90 degrees around the center block'
     def rotate(self,playingField):
+        'creating the rotated data for collisionArray and block-Rects'
         tmpCollisionArray = []
         for i in range(self.width):
             row = []
@@ -278,23 +301,19 @@ class CompleteBlock(): #TODO: Lookup Python Movable
                     newRects[blockCounter] = newRects[blockCounter].move(j*self.blockSize,i*self.blockSize)
                     blockCounter = blockCounter + 1        
 
+        'collision check for the "new" block'
         if playingField.collides(oldRects,newRects,self.blockIndices) == False:
             self.collisonArray = tmpCollisionArray
             self.width, self.height = self.height, self.width
             for i in range(len(self.blocks)):
                 self.blocks[i].rect = newRects[i]
-        else:
-            print "passt nicht"
-                         
+    
+    'deleting the block with the specified ids'
     def deleteBlocks(self,blockIndices):
         deletedBlockSprites = pygame.sprite.RenderUpdates()
         deletedBlocks = []
-        #print " indices " + str(blockIndices)
         for block in self.blocks:
-            
-            #print "id: " + str(block.id)
             if block.id in blockIndices:
-                #print "weg"
                 self.allSprites.remove(block.sprite)
                 deletedBlockSprites.add(block.sprite)
                 deletedBlocks.append(block)
@@ -309,20 +328,26 @@ class CompleteBlock(): #TODO: Lookup Python Movable
         
         return deletedBlockSprites, delete
     
+    'changing the image of specified blocks'
     def changeImage(self,indices,image):
         for block in self.blocks:
             if block.id in indices:
                 block.image = image
                 #print "chanage change change"
     
+    'changing the image back to normal for specified blocks'
     def changeToOldImage(self,indices):
         for block in self.blocks:
             if block.id in indices:
                 block.image = block.standardImage
 
+    'copy constructor'
     def __deepcopy__(self,dup):
         return CompleteBlock(copy.deepcopy(self.height, dup),copy.deepcopy(self.width, dup),copy.deepcopy(self.numbers, dup),copy.deepcopy(self.imageName, dup),copy.deepcopy(self.blockSize, dup))
+'''
+The great Controller for all game Logic
 
+'''
 class PlayingField:
     
     def __init__(self,height,width,pos,screenDims,blockSize):
@@ -345,10 +370,35 @@ class PlayingField:
         self.blockIndex = 1
          
         
-        self.linesText = False
+        self.linesText = False         
         self.linesCount = 0
         self.scoreText = False
         self.score = 0
+        self.highScoreText = False
+        self.highScore = 0
+        self.gameOverText = False
+        self.gameOverPointsText = False
+        
+        if pygame.font:
+            font = pygame.font.Font(os.path.join(data_dir,'fonts', 'feasfbrg.ttf'), 74)
+            self.gameOverText = Text(font,"GameOver!!",(self.screenDims[0]/2,self.screenDims[1]/2-74),0)
+            
+            font = pygame.font.Font(os.path.join(data_dir,'fonts', 'feasfbrg.ttf'), 48)
+            self.gameOverPointsText = Text(font,"Youre Highscore:",(self.screenDims[0]/2,self.screenDims[1]/2),0)
+            
+            font = pygame.font.Font(os.path.join(data_dir,'fonts', 'acknowtt.ttf'), 28)
+            self.scoreText = Text(font,"Score: " + str(self.score),((self.width+4)*self.blockSize + self.blockSize - 10,self.pos[1] + self.height/3*self.blockSize+18 + 150),2)
+            self.allSprites.add(self.scoreText)
+            
+            font = pygame.font.Font(os.path.join(data_dir,'fonts', 'acknowtt.ttf'), 28)
+            self.linesText = Text(font,"Lines: " + str(self.linesCount),((self.width+4)*self.blockSize + self.blockSize -10,self.pos[1] + self.height/3*self.blockSize+18*2 + 150),2)
+            self.allSprites.add(self.linesText)
+            
+            font = pygame.font.Font(os.path.join(data_dir,'fonts', 'acknowtt.ttf'), 26)
+            self.highScoreText = Text(font,"Best :" + str(self.highScore),((self.width+4)*self.blockSize + self.blockSize -10,self.pos[1] + self.height/3*self.blockSize+18*3 + 150),0)
+            self.allSprites.add(self.highScoreText)
+        else:
+            print "Fonts und Texte leider nicht verfuegbar :("
         
         self.animation = False
         self.animationCount = 3
@@ -389,34 +439,26 @@ class PlayingField:
         self.blockIndex = 1
         
         self.linesCount = 0
+        if self.score > self.highScore:
+            self.highScore = self.score
+            self.gameOverPointsText.update("Highscore: " + str(self.highScore) + " :D")
+            self.allSprites.add(self.gameOverPointsText)
+            self.highScoreText.update("Best :" + str(self.highScore))
         self.score = 0
         
         self.animation = False
         self.animationCount = 3
         
-        self.allSprites.add(self.scoreText)
-        self.allSprites.add(self.linesText)
+        self.allSprites.add(self.gameOverPointsText)
+        self.allSprites.add(self.gameOverText)
+
         
         fbg_image, rect = load_image("images/fullbackground.bmp")
         bg_image,rect = load_image("images/background.bmp")
         pv_image,rect = load_image("images/preview.bmp")
         
-        self.background = pygame.Surface((self.width*self.blockSize,self.height*self.blockSize))
-        self.background.blit(bg_image,(0,0))
-        self.preview = pygame.Surface((4*self.blockSize,4*self.blockSize))
-        self.preview.blit(pv_image,(0,0))
-        self.fieldSurface2 = pygame.Surface(self.screenDims)
-        self.fieldSurface2.blit(fbg_image,(0,0))
-        self.fieldSurface2.blit(self.background,self.pos)
-        self.fieldSurface2.blit(self.preview, (self.pos[0] + self.width*self.blockSize + self.blockSize,self.pos[1] ))
+        pygame.time.set_timer(USEREVENT+4, 5000)
         
-        for i in range(self.height):
-            row = []
-            for j in range(self.width):
-                row.append(0)
-            self.collisionArray.append(row)
-        
-        self.resetCheck = True
          
 
     def spawnRandBlock(self):
@@ -472,7 +514,6 @@ class PlayingField:
                 block.move("down",self)
     
     def update(self):
-        #self.animateLines((0,1,2,3,4,5))
         if self.animation == False and len(self.activeBlocks) > 0: 
             self.lines = []    
             self.moveBlocksDown()
@@ -489,30 +530,21 @@ class PlayingField:
                 if self.animation == False:
                     self.score = self.score + 15 + 50 * deletedLinesCount
                     self.spawnRandBlock()
-            self.updateCollisionArray()
+            self.updateCollisionArray() 
             
-            if pygame.font:
-                if self.scoreText == False:
-                    font = pygame.font.Font(os.path.join(data_dir,'fonts', 'acknowtt.ttf'), 28)
-                    self.scoreText = Text(font,"Score: " + str(self.score),((self.width+4)*self.blockSize + self.blockSize - 10,self.pos[1] + self.height/3*self.blockSize+18),0)
-                    self.allSprites.add(self.scoreText)
-                else:
-                    self.scoreText.update("Score: " + str(self.score))
-                #if self.nextBlockText == False:
-                #    font = pygame.font.Font(os.path.join(data_dir,'fonts', 'acknowtt.ttf'), 28)
-                #    self.nextBlockText = Text(font,"NextBlockId: " + str(self.nextBlockId),((self.width-3)/2*self.blockSize,self.pos[1] + self.height*self.blockSize+18*2),0)
-                #    self.allSprites.add(self.nextBlockText)
-                #else:
-                #    self.nextBlockText.update("NextBlockId: " + str(self.nextBlockId))
-                if self.linesText == False:
-                    font = pygame.font.Font(os.path.join(data_dir,'fonts', 'acknowtt.ttf'), 28)
-                    self.linesText = Text(font,"Lines: " + str(self.linesCount),((self.width+4)*self.blockSize + self.blockSize -10,self.pos[1] + self.height/3*self.blockSize+18*2),0)
-                    self.allSprites.add(self.linesText)
-                else:
-                    self.linesText.update("Lines: " + str(self.linesCount))
-            else:
-                print "trololololololol"
-        
+
+            if self.scoreText != False:
+                self.scoreText.update("Score: " + str(self.score))
+            #if self.nextBlockText == False:
+            #    font = pygame.font.Font(os.path.join(data_dir,'fonts', 'acknowtt.ttf'), 28)
+            #    self.nextBlockText = Text(font,"NextBlockId: " + str(self.nextBlockId),((self.width-3)/2*self.blockSize,self.pos[1] + self.height*self.blockSize+18*2),0)
+            #    self.allSprites.add(self.nextBlockText)
+            #else:
+            #    self.nextBlockText.update("NextBlockId: " + str(self.nextBlockId))
+            if self.linesText != False:
+
+                self.linesText.update("Lines: " + str(self.linesCount))
+
     def collides(self,oldRects,newRects,indices):
         oldTuples = []
         for rect in oldRects:
@@ -638,7 +670,7 @@ def main():
     while True:
         
         while playingField.animation == True:
-            animationControl(pygame.event.get(),playingField)
+            input(pygame.event.get(),playingField)
             playingField.allSprites.clear(screen, playingField.fieldSurface2)
             dirtyRects = playingField.allSprites.draw(screen)
             pygame.display.update(dirtyRects)
@@ -648,8 +680,11 @@ def main():
             screen.blit(playingField.fieldSurface2, (0, 0))
             pygame.display.flip()
             playingField.spawnRandBlock()
+            playingField.allSprites.add(playingField.highScoreText)
+            playingField.allSprites.add(playingField.scoreText)
+            playingField.allSprites.add(playingField.linesText)
             playingField.resetCheck = False
-        
+
         input(pygame.event.get(),playingField)
         if len(playingField.deletedBlocks) > 0:
             playingField.deletedBlocks.clear(screen, playingField.fieldSurface2)
@@ -660,9 +695,6 @@ def main():
         
         pygame.display.update(dirtyRects)
         clock.tick(40)
-        
-        
-        
 
 if __name__ == "__main__":
     main()
