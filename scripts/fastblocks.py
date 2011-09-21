@@ -19,7 +19,7 @@ Created on 25.07.2011
 - use dirtyrects (done!)
 '''
 
-import pygame, sys, os, re, random, time, copy
+import pygame, sys, os, re, random, time, copy, eztext
 import xml.dom.minidom as dom
 from pygame.compat import geterror
 from pygame.locals import *
@@ -28,6 +28,8 @@ if not pygame.font: print ('Warning, fonts disabled')
 
 main_dir = os.path.split(os.path.abspath(__file__))[0]
 data_dir = os.path.join(main_dir, '..','data')
+
+nameInput = False
 
 'helper function to load an image with a colorkey (transparent area)'
 def load_image(name, colorkey=None):
@@ -111,9 +113,12 @@ def input(events,playingField):
                 pygame.time.set_timer(USEREVENT+2,150)
             elif event.key == pygame.K_SPACE:
                 playingField.rotateActiveBlock()
-        elif event.type == USEREVENT+1 and playingField.resetCheck == False:
+            elif event.key == pygame.K_p and playingField.paused == False:
+                playingField.paused = True
+            elif event.key == pygame.K_p and playingField.paused == True:
+                playingField.paused = False
+        elif event.type == USEREVENT+1 and playingField.resetCheck == False and playingField.paused == False:
             playingField.update()
-        
         elif event.type == USEREVENT+2:
             if keystate[K_LEFT]:
                 playingField.moveActiveBlock("left")
@@ -378,6 +383,7 @@ class PlayingField:
         self.highScore = 0
         self.gameOverText = False
         self.gameOverPointsText = False
+        self.userNameText = False
         
         if pygame.font:
             font = pygame.font.Font(os.path.join(data_dir,'fonts', 'feasfbrg.ttf'), 74)
@@ -397,12 +403,17 @@ class PlayingField:
             font = pygame.font.Font(os.path.join(data_dir,'fonts', 'acknowtt.ttf'), 26)
             self.highScoreText = Text(font,"Best :" + str(self.highScore),((self.width+4)*self.blockSize + self.blockSize -10,self.pos[1] + self.height/3*self.blockSize+18*3 + 150),0)
             self.allSprites.add(self.highScoreText)
+            
+            font = pygame.font.Font(os.path.join(data_dir,'fonts', 'acknowtt.ttf'), 32)
+            self.userNameText = Text(font,"username",((self.width+4)*self.blockSize + self.blockSize -10,self.pos[1] + self.height/3*self.blockSize+18*8 + 150),0)
+            self.allSprites.add(self.userNameText)
         else:
             print "Fonts und Texte leider nicht verfuegbar :("
         
         self.animation = False
         self.animationCount = 3
         self.resetCheck = False
+        self.paused = False
         
         fbg_image, rect = load_image("images/fullbackground.bmp")
         bg_image,rect = load_image("images/background.bmp")
@@ -451,6 +462,7 @@ class PlayingField:
         
         self.allSprites.add(self.gameOverPointsText)
         self.allSprites.add(self.gameOverText)
+        self.allSprites.add(self.userNameText)
 
         
         fbg_image, rect = load_image("images/fullbackground.bmp")
@@ -659,14 +671,37 @@ def main():
     screen = pygame.display.get_surface() 
     playingField = initialize("config.xml")
     
-    'timer for moving the blocks down and check and delete ready lines'
-    pygame.time.set_timer(USEREVENT+1, 500)
+    
 
     playingField.spawnRandBlock()
     clock = pygame.time.Clock()
     
+    txtbx = eztext.Input(maxlength=45, color=(0,0,0), prompt='Please enter Username: ')
+    
     screen.blit(playingField.fieldSurface2, (0, 0))
-    pygame.display.flip()    
+    txtbx.draw(screen)
+    pygame.display.flip()
+    
+    nameInput = True
+    while nameInput:
+        events = pygame.event.get()
+        for event in events:
+            # close it x button si pressed
+            if event.type == QUIT: return
+        nameInput,userName = txtbx.update(events)
+        # blit txtbx on the sceen
+        screen.blit(playingField.fieldSurface2, (0, 0))
+        txtbx.draw(screen)
+        # refresh the display
+        pygame.display.flip()
+        clock.tick(40)
+    
+    playingField.userNameText.update(userName)
+    
+    'timer for moving the blocks down and check and delete ready lines'
+    pygame.time.set_timer(USEREVENT+1, 500)
+    screen.blit(playingField.fieldSurface2, (0, 0))
+    pygame.display.flip()
     while True:
         
         while playingField.animation == True:
@@ -690,11 +725,15 @@ def main():
             playingField.deletedBlocks.clear(screen, playingField.fieldSurface2)
             playingField.deletedBlocks.empty()
 
+        txtbx.draw(screen)
+
         playingField.allSprites.clear(screen, playingField.fieldSurface2)
         dirtyRects = playingField.allSprites.draw(screen)
         
         pygame.display.update(dirtyRects)
         clock.tick(40)
+        
+        print "fps " + str(clock.get_fps())
 
 if __name__ == "__main__":
     main()
