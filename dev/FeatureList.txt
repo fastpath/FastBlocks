@@ -22,3 +22,8 @@ Player:
 
 PlayingField:
 	- 
+
+config:
+	- all Images
+		- background, preview, fullbackground
+	- fonts
