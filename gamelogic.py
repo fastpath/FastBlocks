@@ -2,8 +2,6 @@
 Created on 01.10.2011
 
 @author: Ecki
-'''
-'''
 The great Controller for all game Logic
 
 '''
@@ -13,9 +11,9 @@ from pygame.compat import geterror
 from pygame.locals import *
 
 'main dir without py2exe'
-#main_dir = os.path.split(os.path.abspath(__file__))[0]
+main_dir = os.path.split(os.path.abspath(__file__))[0]
 'main dir with py2exe'
-main_dir = os.path.dirname(unicode(sys.executable, sys.getfilesystemencoding( )))
+#main_dir = os.path.dirname(unicode(sys.executable, sys.getfilesystemencoding( )))
 data_dir = os.path.join(main_dir,'data')
 
 'helper function to load an image with a colorkey (transparent area)'
@@ -236,7 +234,7 @@ class PlayingField:
         self.nextBlock = False
         self.blockIndex = 1
          
-        
+        'all the information and their texts'
         self.linesText = False         
         self.linesCount = 0
         self.scoreText = False
@@ -248,7 +246,6 @@ class PlayingField:
         self.gameOverText = False
         self.gameOverPointsText = False
         self.userNameText = False
-        
         if pygame.font:
             font = pygame.font.Font(os.path.join(data_dir,'fonts', 'feasfbrg.ttf'), 74)
             self.gameOverText = Text(font,"GameOver!!",(self.screenDims[0]/2,self.screenDims[1]/2-74),0)
@@ -269,7 +266,7 @@ class PlayingField:
             self.allSprites.add(self.linesText)
             
             font = pygame.font.Font(os.path.join(data_dir,'fonts', 'acknowtt.ttf'), 26)
-            self.highScoreText = Text(font,"Best :" + str(self.highScore),((self.width+4)*self.blockSize + self.blockSize -10,self.pos[1] + self.height/3*self.blockSize+18*3 + 150),0)
+            self.highScoreText = Text(font,"Best: " + str(self.highScore),((self.width+4)*self.blockSize + self.blockSize -10,self.pos[1] + self.height/3*self.blockSize+18*3 + 150),0)
             self.allSprites.add(self.highScoreText)
             
             font = pygame.font.Font(os.path.join(data_dir,'fonts', 'acknowtt.ttf'), 32)
@@ -324,7 +321,7 @@ class PlayingField:
             self.highScore = self.score
             self.gameOverPointsText.update("Highscore: " + str(self.highScore) + " :D")
             self.allSprites.add(self.gameOverPointsText)
-            self.highScoreText.update("Best :" + str(self.highScore))
+            self.highScoreText.update("Best: " + str(self.highScore))
         self.score = 0
         
         self.animation = False
@@ -334,16 +331,12 @@ class PlayingField:
         self.allSprites.add(self.gameOverText)
         self.allSprites.add(self.userNameText)
 
-
-        
         fbg_image, rect = load_image("images/fullbackground.bmp")
         bg_image,rect = load_image("images/background.bmp")
         pv_image,rect = load_image("images/preview.bmp")
         
         pygame.time.set_timer(USEREVENT+5, 0)
         pygame.time.set_timer(USEREVENT+4, 5000)
-        
-         
 
     def spawnRandBlock(self):
         if self.nextBlockId == -1:
@@ -383,15 +376,14 @@ class PlayingField:
                     self.collisionArray[(pos[1]-self.pos[1])/self.blockSize][(pos[0]-self.pos[0])/self.blockSize] = lBlock.id
                 else:
                     self.reset()
-                
 
     def moveActiveBlock(self,dir):
-        if self.activeBlocks[-1].stuck != True:
+        if self.activeBlocks[-1].stuck != True and self.paused==False:
             self.activeBlocks[-1].move(dir,self)
         self.updateCollisionArray()
     
     def rotateActiveBlock(self):
-        if self.activeBlocks[-1].stuck != True:
+        if self.activeBlocks[-1].stuck != True and self.paused==False:
             self.activeBlocks[-1].rotate(self)
         self.updateCollisionArray()
     
@@ -418,16 +410,9 @@ class PlayingField:
                     self.score = self.score + 15 + 50 * deletedLinesCount
                     self.spawnRandBlock()
             self.updateCollisionArray() 
-            
 
             if self.scoreText != False:
                 self.scoreText.update("Score: " + str(self.score))
-            #if self.nextBlockText == False:
-            #    font = pygame.font.Font(os.path.join(data_dir,'fonts', 'acknowtt.ttf'), 28)
-            #    self.nextBlockText = Text(font,"NextBlockId: " + str(self.nextBlockId),((self.width-3)/2*self.blockSize,self.pos[1] + self.height*self.blockSize+18*2),0)
-            #    self.allSprites.add(self.nextBlockText)
-            #else:
-            #    self.nextBlockText.update("NextBlockId: " + str(self.nextBlockId))
             if self.linesText != False:
                 self.linesText.update("Lines: " + str(self.linesCount))
             if self.levelText != False:
@@ -466,7 +451,6 @@ class PlayingField:
         return lines
     
     def deleteReadyLines(self):
-
         indices = []
         for lineIndex in self.lines:
             indices.extend(self.collisionArray[lineIndex])
@@ -507,8 +491,7 @@ class PlayingField:
                     intersectsDowner = []
                     intersectsDowner.extend(list(set(block.blockIndices) & set(row[:-1])))
                     if len(intersectsDowner)>0:
-                        block.move("down",self,True,row[-1],intersectsDowner)    
-                
+                        block.move("down",self,True,row[-1],intersectsDowner)
             if downUpper:
                 block.move("down",self,True,len(self.lines),intersectsUpper)
                     
@@ -520,7 +503,6 @@ class PlayingField:
         indices = []
         for line in self.lines:
             indices.extend(self.collisionArray[line])
-        
         if self.animationCount == 3:
             for block in self.activeBlocks:
                 block.changeImage(indices,self.crossBlock.image)

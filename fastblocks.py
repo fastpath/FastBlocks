@@ -27,9 +27,9 @@ from gamelogic import *
 from inputtext import Input
 
 'main dir without py2exe'
-#main_dir = os.path.split(os.path.abspath(__file__))[0]
+main_dir = os.path.split(os.path.abspath(__file__))[0]
 'main dir with py2exe'
-main_dir = os.path.dirname(unicode(sys.executable, sys.getfilesystemencoding( )))
+#main_dir = os.path.dirname(unicode(sys.executable, sys.getfilesystemencoding( )))
 data_dir = os.path.join(main_dir,'data')
 
 if not pygame.font: print ('Warning, fonts disabled')
@@ -105,23 +105,27 @@ def input(events,playingField):
             sys.exit(0) 
         #elif event.type == MOUSEBUTTONDOWN:
         #    playingField.spawnRandBlock()
-        elif event.type == pygame.KEYDOWN and len(playingField.activeBlocks)>0 and playingField.paused == False:
-            if event.key == pygame.K_LEFT:
+        elif event.type == pygame.KEYDOWN and len(playingField.activeBlocks)>0:
+            if event.key == pygame.K_LEFT and playingField.paused == False:
                 playingField.moveActiveBlock("left")
                 pygame.time.set_timer(USEREVENT+2,150)
-            elif event.key == pygame.K_RIGHT:
+            elif event.key == pygame.K_RIGHT and playingField.paused == False:
                 playingField.moveActiveBlock("right")
                 'timer for moving a block with key pressed'
                 pygame.time.set_timer(USEREVENT+2,150)
-            elif event.key == pygame.K_SPACE:
+            elif event.key == pygame.K_SPACE and playingField.paused == False:
                 playingField.rotateActiveBlock()
             elif event.key == pygame.K_p and playingField.paused == False:
                 playingField.paused = True
             elif event.key == pygame.K_p and playingField.paused == True:
                 playingField.paused = False
+                
+        
         if event.type == USEREVENT+1 and playingField.resetCheck == False and playingField.paused == False:
+            'comes at level speed to move the blocks down and update status'
             playingField.update()
-        elif event.type == USEREVENT+2:
+        elif event.type == USEREVENT+2 and playingField.paused == False:
+            'comes when moving a block to enable smooth moving'
             if keystate[K_LEFT]:
                 playingField.moveActiveBlock("left")
             elif keystate[K_RIGHT]:
@@ -129,6 +133,11 @@ def input(events,playingField):
             elif keystate[K_LEFT] & keystate[K_RIGHT] == False:
                 pygame.time.set_timer(USEREVENT+2,0)
         elif event.type == USEREVENT+3:
+            '''comes when lines are deleted and controls the animation steps
+                3 - change the block-image to crossBlock
+                2 - change the image back to normal
+                1 - change it to crossBlock
+                0 - delete the line and update everything'''
             if playingField.animationCount == 0:
                 deletedLinesCount = playingField.deleteReadyLines()
                 playingField.linesCount = playingField.linesCount + deletedLinesCount
@@ -141,48 +150,38 @@ def input(events,playingField):
                 playingField.animationCount -= 1
                 playingField.animateLines()
         elif event.type == USEREVENT+4:
-            print "moneymoney"
+            'comes when the round ended and the highscore-text appears'
             playingField.paused = False
             playingField.allSprites.remove(playingField.gameOverText)
             playingField.allSprites.remove(playingField.gameOverPointsText)
             playingField.resetCheck = True
             pygame.time.set_timer(USEREVENT+4,0)
         elif event.type == USEREVENT+5:
-            print "90 seconds"
+            'comes every 90 seconds to make the gamespeed faster'
             if playingField.speed != 100:
                 playingField.speed = playingField.speed - 100;
             pygame.time.set_timer(USEREVENT+1,playingField.speed)
 
-'''controls the animation steps
-3 - change the block-image to crossBlock
-2 - change the image back to normal
-1 - change it to crossBlock
-0 - delete the line and update everything
-'''
+
                
 def main():
     pygame.init()
     screen_dims = getScreenDims("config.xml")
-    
     pygame.display.init()
-    
+
     window = pygame.display.set_mode(screen_dims)
     pygame.display.set_caption('FastBlocks')
     screen = pygame.display.get_surface() 
     playingField = initialize("config.xml")
     
-    
 
-    playingField.spawnRandBlock()
+
     clock = pygame.time.Clock()
-    
-   # font = pygame.font.Font(os.path.join(data_dir,'fonts', 'acknowtt.ttf'), 45)
+    'textbox for name input'
     txtbx = Input(maxlength=8, color=(255,230,230), prompt='Your name: ', y=screen_dims[1]/2-170, x=30, font = pygame.font.Font(os.path.join(data_dir,'fonts', 'acknowtt.ttf'), 45))
-    
     screen.fill((0,0,0))
     txtbx.draw(screen)
     pygame.display.flip()
-    
     nameInput = True
     while nameInput:
         events = pygame.event.get()
@@ -196,14 +195,16 @@ def main():
         # refresh the display
         pygame.display.flip()
         clock.tick(40)
-    
+
+    playingField.spawnRandBlock()
     screen.blit(playingField.fieldSurface2, (0, 0))
     pygame.display.flip()
-    
+
     playingField.userNameText.update(userName)
-    
+
     'timer for moving the blocks down and check and delete ready lines'
     pygame.time.set_timer(USEREVENT+1, playingField.speed)
+    'timer for accelerating the movement speed'
     pygame.time.set_timer(USEREVENT+5, 90000)
     screen.blit(playingField.fieldSurface2, (0, 0))
     pygame.display.flip()
