@@ -234,8 +234,6 @@ def main():
             playingField.deletedBlocks.clear(screen, playingField.fieldSurface2)
             playingField.deletedBlocks.empty()
 
-        txtbx.draw(screen)
-
         playingField.allSprites.clear(screen, playingField.fieldSurface2)
         dirtyRects = playingField.allSprites.draw(screen)
         
